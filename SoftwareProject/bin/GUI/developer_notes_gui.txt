@@ -1,0 +1,79 @@
+================================================================================
+PROJE GUI MODÜLÜ - GELİŞTİRİCİ NOTLARI VE MİMARİ YAPISI
+================================================================================
+Tarih: 06.01.2026
+Konu: GUI Refactoring (Yeniden Düzenleme) ve Modüler Yapı
+
+1. GENEL BAKIŞ
+--------------------------------------------------------------------------------
+Eski monolitik (tek parça) "SmartHomeUI" sınıfı, Single Responsibility (Tek 
+Sorumluluk) ilkesine uygun olarak parçalanmıştır. Amaç; kodun okunabilirliğini 
+artırmak, bakımını kolaylaştırmak ve bellek performansını optimize etmektir.
+
+Arayüz artık "Ana Konteyner" (SmartHomeUI) ve ona bağlı "Alt Bileşenler" 
+(Paneller) mantığıyla çalışmaktadır.
+
+2. DOSYA REHBERİ VE SORUMLULUKLAR
+--------------------------------------------------------------------------------
+
+A. Temel Yapı Taşları (Core)
+   -------------------------
+   [SmartHomeUI.java]
+   - Projenin ana penceresidir (JFrame).
+   - Alt panelleri (User, Admin, Time) birleştirir ve ekranda gösterir.
+   - SimulationContext'ten gelen "tick" (zaman) sinyallerini dinler ve 
+     alt panellere "kendinizi güncelleyin" emrini dağıtır.
+
+   [ThemeManager.java] (Singleton Pattern)
+   - Uygulamanın tüm renk, font ve stil ayarlarını tek bir merkezde tutar.
+   - Performans Kritiği: Renk nesnelerini (Color) her seferinde "new" ile 
+     yeniden oluşturmak yerine, hafızada bir kez oluşturup cache'ler.
+   - Garbage Collector yükünü azaltmak için tüm stil çağrıları buradan yapılmalıdır.
+
+   [DeviceUIFactory.java] (Factory Pattern)
+   - "Hangi cihaz için hangi buton çizilecek?" sorusunun cevabıdır.
+   - Cihaz türüne (Termostat, Lamba, Dimmer) göre buton rengini, metnini ve 
+     ikonunu dinamik olarak üretir.
+   - Karmaşık "if-else" ve "instanceof" mantığı sadece bu sınıfta bulunur.
+
+B. Görsel Bileşenler (Panels)
+   --------------------------
+   [UserDashboardPanel.java]
+   - "Ev Kontrolü" sekmesinin içeriğidir.
+   - Odaları listeler, sıcaklık değişim butonlarını ve cihazları gösterir.
+   - Cihaz butonlarını oluştururken DeviceUIFactory'yi kullanır.
+
+   [AdminControlPanel.java]
+   - "Yönetici Paneli" sekmesinin içeriğidir.
+   - Yeni cihaz ekleme formu ve cihaz silme/upgrade listesini yönetir.
+   - SystemProxy üzerinden ekleme/çıkarma işlemlerini tetikler.
+
+   [TimeControlPanel.java]
+   - Simülasyon hızını kontrol eden Slider (Kaydırıcı) ve durdurma butonunu içerir.
+   - Timer nesnesini doğrudan yönetir.
+
+   [SimulationPanel.java]
+   - Ekranın en üstündeki bilgi çubuğudur.
+   - Saat, Dış Sıcaklık ve Güneş Durumu bilgilerini gösterir.
+
+3. KULLANILAN TASARIM DESENLERİ (DESIGN PATTERNS)
+--------------------------------------------------------------------------------
+Bu pakette aşağıdaki desenler aktif olarak kullanılmıştır:
+
+1. Singleton (ThemeManager): 
+   Bellek yönetimi ve merkezi tema kontrolü için.
+
+2. Factory Method (DeviceUIFactory): 
+   Arayüz oluşturma kodunu iş mantığından ayırmak için.
+
+3. Observer (SmartHomeUI implements SimulationObserver): 
+   Simülasyon motorundaki değişiklikleri (Zaman, Sıcaklık) anlık yakalamak için.
+
+4. GELECEK GELİŞTİRMELER İÇİN NOTLAR
+--------------------------------------------------------------------------------
+- Yeni bir cihaz türü eklendiğinde:
+  1. ThemeManager'a cihazın durum renklerini ekleyin.
+  2. DeviceUIFactory sınıfına bu cihazın butonunu nasıl çizeceğini öğretin.
+  
+- Yeni bir sekme (Tab) ekleneceğinde:
+  Yeni bir Panel sınıfı oluşturun ve SmartHomeUI içindeki "tabbedPane"e ekleyin.
